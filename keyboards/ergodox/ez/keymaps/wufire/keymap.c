@@ -111,6 +111,80 @@ const macro_t *action_get_macro(keyrecord_t *record, uint8_t id, uint8_t opt)
     return MACRO_NONE;
 };
 
+typedef struct {
+    double r;       // a fraction between 0 and 1
+    double g;       // a fraction between 0 and 1
+    double b;       // a fraction between 0 and 1
+} rgb;
+
+typedef struct {
+    double h;       // angle in degrees
+    double s;       // a fraction between 0 and 1
+    double v;       // a fraction between 0 and 1
+} hsv;
+
+static hsv   rgb2hsv(rgb in);
+
+hsv rgb2hsv(rgb in)
+{
+    hsv         out;
+    double      min, max, delta;
+
+    min = in.r < in.g ? in.r : in.g;
+    min = min  < in.b ? min  : in.b;
+
+    max = in.r > in.g ? in.r : in.g;
+    max = max  > in.b ? max  : in.b;
+
+    out.v = max;                                // v
+    delta = max - min;
+    if (delta < 0.00001)
+    {
+        out.s = 0;
+        out.h = 0; // undefined, maybe nan?
+        return out;
+    }
+    if( max > 0.0 ) { // NOTE: if Max is == 0, this divide would cause a crash
+        out.s = (delta / max);                  // s
+    } else {
+        // if max is 0, then r = g = b = 0
+        // s = 0, v is undefined
+        out.s = 0.0;
+        out.h = NAN;                            // its now undefined
+        return out;
+    }
+    if( in.r >= max )                           // > is bogus, just keeps compilor happy
+        out.h = ( in.g - in.b ) / delta;        // between yellow & magenta
+    else
+    if( in.g >= max )
+        out.h = 2.0 + ( in.b - in.r ) / delta;  // between cyan & yellow
+    else
+        out.h = 4.0 + ( in.r - in.g ) / delta;  // between magenta & cyan
+
+    out.h *= 60.0;                              // degrees
+
+    if( out.h < 0.0 )
+        out.h += 360.0;
+
+    return out;
+}
+
+void set_rgblight(uint8_t r, uint8_t g, uint8_t b) {
+    // rgblight_setrgb(r, g, b);
+    rgb input;
+    input.r = (double)r / 255;
+    input.g = (double)g / 255;
+    input.b = (double)b / 255;
+
+    hsv result = rgb2hsv(input);
+
+    uint16_t hue = (uint16_t)result.h;
+    uint8_t sat = (uint8_t)(result.s * 255);
+    uint8_t val = (uint8_t)(result.v * 255);
+
+    rgblight_sethsv(hue, sat, val);
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   switch (keycode) {
     // dynamically generate these.
@@ -134,13 +208,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       break;
     case RGB_STEP:
         if (record->event.pressed) {
-            rgblight_step();
+            rgblight_increase();
         }
         return false;
         break;
     case RGB_STEP_REV:
         if (record->event.pressed) {
-            rgblight_step_reverse();
+            rgblight_decrease();
         }
         return false;
         break;
@@ -148,7 +222,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x00,0x00);
+          set_rgblight(0xff,0x00,0x00);
         #endif
       }
       return false;
@@ -158,7 +232,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xff,0x00);
+          set_rgblight(0xff,0xff,0x00);
         #endif
       }
       return false;
@@ -168,7 +242,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0xff,0x00);
+          set_rgblight(0x00,0xff,0x00);
         #endif
       }
       return false;
@@ -178,7 +252,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xff,0xff);
+          set_rgblight(0xff,0xff,0xff);
         #endif
       }
       return false;
@@ -188,7 +262,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0x00,0x00);
+          set_rgblight(0x00,0x00,0x00);
         #endif
       }
       return false;
@@ -198,7 +272,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xc0,0xcb);
+          set_rgblight(0xff,0xc0,0xcb);
         #endif
       }
       return false;
@@ -208,7 +282,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0x80,0x80);
+          set_rgblight(0x00,0x80,0x80);
         #endif
       }
       return false;
@@ -218,7 +292,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xe4,0xe1);
+          set_rgblight(0xff,0xe4,0xe1);
         #endif
       }
       return false;
@@ -228,7 +302,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x7f,0xff,0x00);
+          set_rgblight(0x7f,0xff,0x00);
         #endif
       }
       return false;
@@ -238,7 +312,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x7f,0x00);
+          set_rgblight(0xff,0x7f,0x00);
         #endif
       }
       return false;
@@ -248,7 +322,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xd7,0x00);
+          set_rgblight(0xff,0xd7,0x00);
         #endif
       }
       return false;
@@ -258,7 +332,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xd3,0xff,0xce);
+          set_rgblight(0xd3,0xff,0xce);
         #endif
       }
       return false;
@@ -268,7 +342,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x40,0xe0,0xd0);
+          set_rgblight(0x40,0xe0,0xd0);
         #endif
       }
       return false;
@@ -278,7 +352,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x73,0x73);
+          set_rgblight(0xff,0x73,0x73);
         #endif
       }
       return false;
@@ -288,7 +362,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xe6,0xe6,0xfa);
+          set_rgblight(0xe6,0xe6,0xfa);
         #endif
       }
       return false;
@@ -298,7 +372,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x7f,0x7f,0xff);
+          set_rgblight(0x7f,0x7f,0xff);
         #endif
       }
       return false;
@@ -308,7 +382,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xa5,0x00);
+          set_rgblight(0xff,0xa5,0x00);
         #endif
       }
       return false;
@@ -318,7 +392,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xcc,0xcc,0xcc);
+          set_rgblight(0xcc,0xcc,0xcc);
         #endif
       }
       return false;
@@ -328,7 +402,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xb0,0xe0,0xe6);
+          set_rgblight(0xb0,0xe0,0xe6);
         #endif
       }
       return false;
@@ -338,7 +412,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xf0,0xf8,0xff);
+          set_rgblight(0xf0,0xf8,0xff);
         #endif
       }
       return false;
@@ -348,7 +422,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x00,0x7f);
+          set_rgblight(0xff,0x00,0x7f);
         #endif
       }
       return false;
@@ -358,7 +432,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x7f,0xff,0xd4);
+          set_rgblight(0x7f,0xff,0xd4);
         #endif
       }
       return false;
@@ -368,7 +442,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x33,0x33,0x33);
+          set_rgblight(0x33,0x33,0x33);
         #endif
       }
       return false;
@@ -378,7 +452,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xc0,0xc0,0xc0);
+          set_rgblight(0xc0,0xc0,0xc0);
         #endif
       }
       return false;
@@ -388,7 +462,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x80,0x00,0x80);
+          set_rgblight(0x80,0x00,0x80);
         #endif
       }
       return false;
@@ -398,7 +472,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xf6,0x54,0x6a);
+          set_rgblight(0xf6,0x54,0x6a);
         #endif
       }
       return false;
@@ -408,7 +482,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0xff,0x7f);
+          set_rgblight(0x00,0xff,0x7f);
         #endif
       }
       return false;
@@ -418,7 +492,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x00,0xff);
+          set_rgblight(0xff,0x00,0xff);
         #endif
       }
       return false;
@@ -428,7 +502,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x7f,0x00,0xff);
+          set_rgblight(0x7f,0x00,0xff);
         #endif
       }
       return false;
@@ -438,7 +512,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0x00,0xff);
+          set_rgblight(0x00,0x00,0xff);
         #endif
       }
       return false;
@@ -448,7 +522,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0x7f,0xff);
+          set_rgblight(0x00,0x7f,0xff);
         #endif
       }
       return false;
@@ -458,7 +532,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0xff,0xff);
+          set_rgblight(0x00,0xff,0xff);
         #endif
       }
       return false;
@@ -468,7 +542,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x20,0xb2,0xaa);
+          set_rgblight(0x20,0xb2,0xaa);
         #endif
       }
       return false;
@@ -478,7 +552,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x66,0x66,0x66);
+          set_rgblight(0x66,0x66,0x66);
         #endif
       }
       return false;
@@ -488,7 +562,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xfa,0x80,0x72);
+          set_rgblight(0xfa,0x80,0x72);
         #endif
       }
       return false;
@@ -498,7 +572,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0x33,0x66);
+          set_rgblight(0x00,0x33,0x66);
         #endif
       }
       return false;
@@ -508,7 +582,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xc6,0xe2,0xff);
+          set_rgblight(0xc6,0xe2,0xff);
         #endif
       }
       return false;
@@ -518,7 +592,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xfa,0xeb,0xd7);
+          set_rgblight(0xfa,0xeb,0xd7);
         #endif
       }
       return false;
@@ -528,7 +602,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xc3,0xa0);
+          set_rgblight(0xff,0xc3,0xa0);
         #endif
       }
       return false;
@@ -538,7 +612,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x00,0xce,0xd1);
+          set_rgblight(0x00,0xce,0xd1);
         #endif
       }
       return false;
@@ -548,7 +622,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xb6,0xc1);
+          set_rgblight(0xff,0xb6,0xc1);
         #endif
       }
       return false;
@@ -558,7 +632,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x08,0x8d,0xa5);
+          set_rgblight(0x08,0x8d,0xa5);
         #endif
       }
       return false;
@@ -568,7 +642,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x46,0x84,0x99);
+          set_rgblight(0x46,0x84,0x99);
         #endif
       }
       return false;
@@ -578,7 +652,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xf6,0x8f);
+          set_rgblight(0xff,0xf6,0x8f);
         #endif
       }
       return false;
@@ -588,7 +662,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x66,0x66);
+          set_rgblight(0xff,0x66,0x66);
         #endif
       }
       return false;
@@ -598,7 +672,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x66,0xcd,0xaa);
+          set_rgblight(0x66,0xcd,0xaa);
         #endif
       }
       return false;
@@ -608,7 +682,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xf0,0x80,0x80);
+          set_rgblight(0xf0,0x80,0x80);
         #endif
       }
       return false;
@@ -618,7 +692,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x80,0x80,0x80);
+          set_rgblight(0x80,0x80,0x80);
         #endif
       }
       return false;
@@ -628,7 +702,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x8b,0x00,0x00);
+          set_rgblight(0x8b,0x00,0x00);
         #endif
       }
       return false;
@@ -638,7 +712,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xcb,0xbe,0xb5);
+          set_rgblight(0xcb,0xbe,0xb5);
         #endif
       }
       return false;
@@ -648,7 +722,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xaf,0xee,0xee);
+          set_rgblight(0xaf,0xee,0xee);
         #endif
       }
       return false;
@@ -658,7 +732,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x81,0xd8,0xd0);
+          set_rgblight(0x81,0xd8,0xd0);
         #endif
       }
       return false;
@@ -668,7 +742,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x7f,0x50);
+          set_rgblight(0xff,0x7f,0x50);
         #endif
       }
       return false;
@@ -678,7 +752,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x0e,0x2f,0x44);
+          set_rgblight(0x0e,0x2f,0x44);
         #endif
       }
       return false;
@@ -688,7 +762,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xb4,0xee,0xb4);
+          set_rgblight(0xb4,0xee,0xb4);
         #endif
       }
       return false;
@@ -698,7 +772,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xda,0xa5,0x20);
+          set_rgblight(0xda,0xa5,0x20);
         #endif
       }
       return false;
@@ -708,7 +782,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xc0,0xd6,0xe4);
+          set_rgblight(0xc0,0xd6,0xe4);
         #endif
       }
       return false;
@@ -718,7 +792,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xdd,0xdd,0xdd);
+          set_rgblight(0xdd,0xdd,0xdd);
         #endif
       }
       return false;
@@ -728,7 +802,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xc3,0x97,0x97);
+          set_rgblight(0xc3,0x97,0x97);
         #endif
       }
       return false;
@@ -738,7 +812,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0x40,0x40);
+          set_rgblight(0xff,0x40,0x40);
         #endif
       }
       return false;
@@ -748,7 +822,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xff,0xda,0xb9);
+          set_rgblight(0xff,0xda,0xb9);
         #endif
       }
       return false;
@@ -758,7 +832,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0xf5,0xf5,0xdc);
+          set_rgblight(0xf5,0xf5,0xdc);
         #endif
       }
       return false;
@@ -768,7 +842,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       if (record->event.pressed) {
         #ifdef RGBLIGHT_ENABLE
           rgblight_enable();
-          rgblight_setrgb(0x7f,0xff,0xff);
+          set_rgblight(0x7f,0xff,0xff);
         #endif
       }
       return false;
